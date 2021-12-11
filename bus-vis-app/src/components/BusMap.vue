@@ -99,13 +99,10 @@ export default {
       });
 
       if (this.plan === 'p20') {
-        this.drawStationPanels(p20Stations);
         this.updateBusPositions();
       } else if (this.plan === 'p60') {
-        this.drawStationPanels(p60Stations);
         this.updateBusPositions();
       } else {
-        this.drawStationPanels(p180Stations);
         this.updateBusPositions();
       }
     }
