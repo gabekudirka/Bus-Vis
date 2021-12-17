@@ -28,8 +28,8 @@ export default {
   name: 'BusMap',
   data() {
     return {
-      center: [process.env.VUE_APP_COORDS_X, process.env.VUE_APP_COORDS_Y],
-      zoom: process.env.VUE_APP_ZOOM,
+      center: [40.7608, -111.891],
+      zoom: 12,
       map: null,
       busMarkers: null,
       stationMarkers: null,
