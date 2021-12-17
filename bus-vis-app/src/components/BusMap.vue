@@ -536,6 +536,25 @@ export default {
         feature.properties.PM25 = pollutantConcentrations.features[i].properties.PM25;
       });
 
+      pollutantConcentrations.features.forEach((feature, i) => {
+        if (pollutantsVoronoi.features[i]) {
+          pollutantsVoronoi.features[i].properties.PM25 = feature.properties.PM25;
+        } else {
+          pollutantsVoronoi.features[i] = {
+            geometry: {
+                coordinates: [
+                    [[0, 0], [0, 0], [0, 0], [0, 0]]
+                ],
+                type: 'Polygon'
+            },
+            properties: {
+                PM25: '0'
+            },
+            type: 'Feature'
+          };
+        }
+      });
+
       const onEachFeature = function (feature, layer) {
         layer.on({
             mouseover: ref.highlightFeature,
