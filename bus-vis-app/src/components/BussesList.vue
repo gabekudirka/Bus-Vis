@@ -3,7 +3,7 @@
   <div>
     <div style="text-align:left">
         <input type="checkbox" id="switch" v-model="onlyConv" @change="checkOnlyConv()" style="margin:0 0.6em">
-        <label for="switch">Show Only Converted Buses</label> 
+        <label for="switch" style="font-size:smaller; font-weight:bolder">Show Only Converted Buses</label> 
     </div>
     <ul id="busList">
         <li class="header">
