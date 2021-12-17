@@ -1,6 +1,10 @@
 /* eslint-disable no-confusing-arrow */
 <template>
   <div>
+    <div style="text-align:left">
+        <input type="checkbox" id="switch" v-model="onlyConv" @change="checkOnlyConv()" style="margin:0 0.6em">
+        <label for="switch">Show Only Converted Buses</label> 
+    </div>
     <ul id="busList">
         <li class="header">
             <input type="checkbox" v-model="allOn" @change="checkAll()" style="margin:0 0.6em"/>
@@ -43,7 +47,8 @@ export default {
             // 'converted' || 'envEquity' || 'route' || 'batteryLevel' || 'busNo'
             sortBy: 'converted',
             planBusses: this.getPlanBuses(),
-            allOn: true
+            allOn: true,
+            onlyConv: false
         };
     },
     computed: {
@@ -69,6 +74,30 @@ export default {
         },
     },
     methods: {
+        checkOnlyConv: function () {
+            // just change bussesToShow
+            if (this.onlyConv) {
+                 // Get non-conv buses
+                const otherBuses = this.busLocations.features.filter(bus => bus.properties.converted === 0);
+                const convertedBuses = this.busLocations.features.filter(bus => bus.properties.converted === 1);
+                // hide other buses from map
+                otherBuses.map(bus => {
+                    bus.properties.show = false;
+                    return bus;
+                });
+                this.$store.dispatch('changeBussesToShow', convertedBuses.map(bus => bus.properties.id));
+            } else {
+                // show all buses
+                const allBuses = [];
+                this.busLocations.features.map(bus => {
+                    bus.properties.show = true;
+                    allBuses.push(bus.properties.id);
+                    return bus;
+                });
+
+                this.$store.dispatch('changeBussesToShow', allBuses);
+            }
+        },
         checkAll: function () {
             // toggle show for all busLocations
             if (this.routeFocused) {
