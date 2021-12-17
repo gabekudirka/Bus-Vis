@@ -10,6 +10,8 @@
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-control-geocoder/dist/Control.Geocoder.css';
 import L from 'leaflet';
+import voronoi from '@turf/voronoi';
+import bbox from '@turf/bbox';
 import busRoutes from '../data/BusRoutes_UTA.json';
 import greenBusIcon from '../assets/images/busIconGreen.png';
 import busIcon from '../assets/images/busIcon.png';
@@ -19,17 +21,20 @@ import busStops from '../data/BusStops_UTA.json';
 import p20Stations from '../data/stationLocations/p20.json';
 import p60Stations from '../data/stationLocations/p60.json';
 import p180Stations from '../data/stationLocations/p180.json';
-import tazRegions from '../data/supplementary_data/TAZ_with_data2.json';
+import tazRegions from '../data/supplementary_data/taz_region_data.json';
 import pollutantConcentrations from '../data/supplementary_data/pollutant_concentrations.json';
 
 export default {
   name: 'BusMap',
   data() {
     return {
-      center: [40.7608, -111.891],
+      center: [process.env.VUE_APP_COORDS_X, process.env.VUE_APP_COORDS_Y],
+      zoom: process.env.VUE_APP_ZOOM,
       map: null,
       busMarkers: null,
       stationMarkers: null,
+      economicLegend: this.createLegend('economic'),
+      pollutantLegend: this.createLegend('pollutant'),
       routeStyle: {
         color: 'blue',
         opacity: 0.5,
@@ -55,6 +60,7 @@ export default {
       },
       selectedBus: -1,
       selectedRoute: -1,
+      selectedStation: -1,
       hoveredRoute: -1,
     };
   },
@@ -70,6 +76,9 @@ export default {
     },
     stateSelectedBus: function () {
       return this.$store.state.selectedBus;
+    },
+    stateSelectedStation: function () {
+      return this.$store.state.selectedStation;
     },
     routeFocused: function () {
       return this.$store.state.routeFocused;
@@ -110,7 +119,33 @@ export default {
         iconSize: [40, 40],
         class: 'station'
       });
-    }
+    },
+    stationPanelIconHighlighted: function () {
+      return L.icon({
+        iconUrl: chargingStationIcon,
+        iconSize: [50, 50],
+        class: 'station'
+      });
+    },
+    info: function () {
+      const info = L.control({ position: 'bottomleft' });
+      info.onAdd = function (map) {
+        this._div = L.DomUtil.create('div', 'info');
+        return this._div;
+      };
+      info.show = function (layer) {
+        if (layer.feature.properties.N___CO_TAZ) {
+          this._div.innerHTML = '<p>TAZ ID: <b>' + layer.feature.properties.N___CO_TAZ + '</b> </p>';
+        } else if (layer.feature.properties.PM25) {
+          this._div.innerHTML = '<p>PM2.5_ATM_ug/m3: <b>' + layer.feature.properties.PM25 + '</b> </p>';
+        }
+      };
+      info.hide = function () {
+        this._div.innerHTML = '';
+      };
+
+      return info;
+    },
   },
   watch: {
     busLocations: {
@@ -125,6 +160,7 @@ export default {
       this.stationMarkers.eachLayer((layer) => {
         this.map.removeLayer(layer);
       });
+      this.selectedStation = -1;
 
       if (this.plan === 'p20') {
         this.drawStationPanels(p20Stations);
@@ -146,7 +182,20 @@ export default {
           this.highlightBus(selectedLayer, this);
         }
       }
-    }
+    },
+    stateSelectedStation: function () {
+      if (this.stationMarkers != null) {
+        let selectedLayer = null;
+        this.stationMarkers.eachLayer((layer) => {
+          if (this.busLocations.features[layer.bus].properties.id === this.stateSelectedBus) {
+            selectedLayer = layer;
+          }
+        });
+        if (selectedLayer != null) {
+          this.highlightBus(selectedLayer, this);
+        }
+      }
+    },
   },
   methods: {
     drawStationPanels(stationLocations) {
@@ -163,6 +212,7 @@ export default {
               if (ref.showBusPanel) {
                 ref.$store.dispatch('changeShowBusses', false);
               }
+              ref.highlightStation(layer);
             }
         });
       }
@@ -174,6 +224,41 @@ export default {
       });
 
       this.stationMarkers.addTo(this.map);
+    },
+    highlightStation(layer) {
+      if (this.selectedBus !== -1) {
+        const oldBusLayer = this.busMarkers._layers[this.selectedBus];
+        const oldBus = this.busLocations.features[oldBusLayer.bus];
+        if (oldBus.properties.converted) {
+          oldBusLayer.setIcon(this.greenIcon);
+          oldBusLayer.setZIndexOffset(-50);
+        } else {
+          oldBusLayer.setIcon(this.blackIcon);
+          oldBusLayer.setZIndexOffset(-50);
+        }
+        this.selectedBus = -1;
+      }
+      const layerId = layer._leaflet_id;
+      if (this.selectedStation === -1) {
+        // if no station is selected, highlight the station
+        this.selectedStation = layerId;
+        layer.setIcon(this.stationPanelIconHighlighted);
+        layer.setZIndexOffset(50);
+      } else {
+        // if a station is selected, unhighlight the bus
+        const oldLayer = this.stationMarkers._layers[this.selectedStation];
+        oldLayer.setIcon(this.stationPanelIcon);
+        oldLayer.setZIndexOffset(-50);
+        if (layerId === this.selectedStation) {
+          // if the selected station is clicked, unselect it
+          this.selectedStation = -1;
+        } else {
+          // if another station is clicked, highlight it
+          this.selectedStation = layerId;
+          layer.setIcon(this.stationPanelIconHighlighted);
+          layer.setZIndexOffset(50);
+        }
+      }
     },
     drawBuses() {
       const ref = this;      
@@ -214,6 +299,13 @@ export default {
        this.busMarkers.addTo(this.map);
     },
     highlightBus(layer) {
+      if (this.selectedStation !== -1) {
+        const oldStationLayer = this.stationMarkers._layers[this.selectedStation];
+        oldStationLayer.setIcon(this.stationPanelIcon);
+        oldStationLayer.setZIndexOffset(-50);
+        this.selectedStation = -1;
+      }
+
       const layerId = layer._leaflet_id;
       const bus = this.busLocations.features[layer.bus];
       if (this.selectedBus === -1) {
@@ -379,7 +471,7 @@ export default {
      this.map = L.map(this.$refs.mapElement, {
         center: this.center,
         layers: [osmMap, googleSat],
-        zoom: 13,
+        zoom: this.zoom,
         doubleClickZoom: false,
       });
 
@@ -394,22 +486,12 @@ export default {
       });
       busStopOverlay.addTo(this.map);
 
-      const ref = this;
+      const pollutantConcentrationOverlay = this.drawPollutantConcentrationOverlay();
 
-      const onEachFeature = function (feature, layer) {
-        layer.bindTooltip(`<p> PM2.5_ATM_ug/m3:<b> ${feature.properties.PM25} </b></p>`);
-      };
-      const pollutantConcentrationOverlay = L.geoJson(pollutantConcentrations, { 
-          pointToLayer: function (feature, latlng) {
-            return L.marker(latlng, { icon: ref.pollutantIcon });
-          }, 
-          onEachFeature: onEachFeature
-      });
-
-      const overlayGeojson = this.drawTazOverlay();
+      const economicOverlay = this.drawTazOverlay();
 
       const overlays = {
-        'Economic Data by Region': overlayGeojson,
+        'Economic Data by Region': economicOverlay,
         'Pollutant Concentrations': pollutantConcentrationOverlay,
         'Bus Stops': busStopOverlay,  
         'Bus Routes': this.routesOverlay,
@@ -421,74 +503,102 @@ export default {
       };
 
       L.control.layers(baseMaps, overlays).addTo(this.map);
-    },
-    drawTazOverlay() {
-      const ref = this;
-      const info = L.control({ position: 'bottomleft' });
 
-      function getColor(bracket1, bracket2 = 0, totalHouseholds = 1) {
-        if (totalHouseholds === 0) {
-          return '#fffefa';
+      this.map.on('overlayadd', (e) => {
+        if (e.name === 'Economic Data by Region') {
+          this.economicLegend.addTo(this.map);
+          this.info.addTo(this.map);
+        } else if (e.name === 'Pollutant Concentrations') {
+          this.pollutantLegend.addTo(this.map);
+          this.info.addTo(this.map);
         }
-          
-        const b = parseFloat(bracket1) + parseFloat(bracket2);
-        return b > 70 ? '#800026'
-              : b > 60 ? '#BD0026'
-              : b > 50 ? '#E31A1C'
-              : b > 40 ? '#FC4E2A'
-              : b > 30 ? '#FD8D3C'
-              : b > 20 ? '#FEB24C'
-              : b > 10 ? '#FED976'
-              : b > 0 ? '#FFEDA0'
-              : '#fff7d6';
-      }
+      });
+      this.map.on('overlayremove', (e) => {
+        if (e.name === 'Economic Data by Region') {
+          this.economicLegend.remove();
+          if (!this.map.hasLayer(pollutantConcentrationOverlay)) {
+            this.info.remove();
+          }
+        } else if (e.name === 'Pollutant Concentrations') {
+          this.pollutantLegend.remove();
+          if (!this.map.hasLayer(economicOverlay)) {
+            this.info.remove();
+          }
+        }
+      });
+    },
+    drawPollutantConcentrationOverlay() {
+      const ref = this;
 
-      function tazOverlayStyle(feature) {
+      const pollutantBbox = bbox(pollutantConcentrations);
+      const pollutantsVoronoi = voronoi(pollutantConcentrations, { pollutantBbox });
+      pollutantsVoronoi.features.forEach((feature, i) => {
+        feature.properties.PM25 = pollutantConcentrations.features[i].properties.PM25;
+      });
+
+      const onEachFeature = function (feature, layer) {
+        layer.on({
+            mouseover: ref.highlightFeature,
+            mouseout: function (e) {
+              pollutantConcentrationOverlay.resetStyle(e.target);
+              ref.info.hide();
+            },
+        });
+      };
+
+      function pollutantOverlayStyle(feature) {
         return {
-            fillColor: getColor(feature.properties.inc_bracket1, feature.properties.inc_bracket2, feature.properties.total_households),  
-            weight: 2,
-            opacity: 0.6,
-            color: 'black',
-            dashArray: '3',
-            fillOpacity: 0.5,
+          fillColor: ref.getColor([0, 5, 10, 15, 20, 25, 30, 35], feature.properties.PM25),  
+          weight: 1,
+          opacity: 0.6,
+          color: 'black',
+          fillOpacity: 0.5,
         };
       }
-
-      function onEachFeature(feature, layer) {
-        layer.on({
-            mouseover: highlightFeature,
-            mouseout: resetHighlight,
-            click: displayTazInfo
-        });
-      }
-
-      const overlayGeojson = L.geoJson(tazRegions, {
-        style: tazOverlayStyle,
+      
+      const pollutantConcentrationOverlay = L.geoJson(pollutantsVoronoi, {
+        style: pollutantOverlayStyle,
         onEachFeature: onEachFeature
       });
 
-      function highlightFeature(e) {
-        const layer = e.target;
-        layer.setStyle({
-            weight: 3,
-            color: '#666',
-            dashArray: '',
-            fillOpacity: 0.7
-        });
+      return pollutantConcentrationOverlay;
+    },
+    getColor(range, bracket1, bracket2 = 0, totalHouseholds = 1) {
+      if (totalHouseholds === 0) {
+        return '#fffefa';
+      }
+        
+      const b = parseFloat(bracket1) + parseFloat(bracket2);
+      return b > range[7] ? '#800026'
+            : b > range[6] ? '#BD0026'
+            : b > range[5] ? '#E31A1C'
+            : b > range[4] ? '#FC4E2A'
+            : b > range[3] ? '#FD8D3C'
+            : b > range[2] ? '#FEB24C'
+            : b > range[1] ? '#FED976'
+            : b > range[0] ? '#FFEDA0'
+            : '#fff7d6';
+    },
+    highlightFeature(e) {
+      const layer = e.target;
+      layer.setStyle({
+          weight: 3,
+          color: '#666',
+          dashArray: '',
+          fillOpacity: 0.7
+      });
 
-        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-            layer.bringToFront();
-        }
-        info.show(layer.feature.properties);
+      if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+          layer.bringToFront();
       }
 
-      function resetHighlight(e) {
-        overlayGeojson.resetStyle(e.target);
-        info.hide();
-      }
+      this.info.show(layer); 
+    },
+    drawTazOverlay() {
+      const ref = this;
 
       function displayTazInfo(props) {
-        info._div.innerHTML = '<p>TAZ ID: <b>' + props.target.feature.properties.N___CO_TAZ + '</b> </p>'
+        ref.info._div.innerHTML = '<p>TAZ ID: <b>' + props.target.feature.properties.N___CO_TAZ + '</b> </p>'
             + '<i>Households making:</i>'
             + '<br/> $0-$34k per year: &nbsp&nbsp&nbsp&nbsp<b>' + props.target.feature.properties.inc_bracket1
             + '%</b><br/> $35k-$50k per year: <b>' + props.target.feature.properties.inc_bracket2
@@ -497,51 +607,60 @@ export default {
             + '%</b><br/> Total number of households: <b>' + props.target.feature.properties.total_households + '</b>';
       }
 
-      info.onAdd = function (map) {
-        this._div = L.DomUtil.create('div', 'info');
-        return this._div;
-      };
-      info.show = function (props) {
-        this._div.innerHTML = '<p>TAZ ID: <b>' + props.N___CO_TAZ + '</b> </p>';
-            // + 'Households in income bracket 1: ' + props.inc_bracket1
-            // + '%<br/> Households in income bracket 2: ' + props.inc_bracket2
-            // + '%<br/> Households in income bracket 3: ' + props.inc_bracket3
-            // + '%<br/> Households in income bracket 4: ' + props.inc_bracket4
-            // + '%<br/> Total number of households: ' + props.total_households
-            // : 'Hover over a region');
-      };
-      info.hide = function () {
-        this._div.innerHTML = '';
-      };
+      function onEachFeature(feature, layer) {
+        layer.on({
+            mouseover: ref.highlightFeature,
+            mouseout: function (e) {
+              economicOverlay.resetStyle(e.target);
+              ref.info.hide();
+            },
+            click: displayTazInfo
+        });
+      }
 
+      function tazOverlayStyle(feature) {
+        return {
+          fillColor: ref.getColor([0, 10, 20, 30, 40, 50, 60, 70], feature.properties.inc_bracket1, feature.properties.inc_bracket2, feature.properties.total_households),  
+          weight: 1,
+          opacity: 0.6,
+          color: 'black',
+          fillOpacity: 0.5,
+        };
+      }
+
+      const economicOverlay = L.geoJson(tazRegions, {
+        style: tazOverlayStyle,
+        onEachFeature: onEachFeature
+      });
+
+      return economicOverlay;
+    },
+    createLegend(overlayType) {
+      const ref = this;
       const legend = L.control({ position: 'bottomleft' });
+
       legend.onAdd = function (map) {
           const div = L.DomUtil.create('div', 'info legend');
-              const grades = [0, 10, 20, 30, 40, 50, 60, 70]; 
-              const labels = [];
 
-          div.innerHTML = '<p><b>Households making </br> less than $50,000</b></p>';
-          for (let i = 0; i < grades.length; i++) {
-              div.innerHTML += '<i style="background:' + getColor(grades[i] + 1) + '"></i> '
-                  + grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '%<br>' : '%+');
+          if (overlayType === 'economic') {
+            const grades = [0, 10, 20, 30, 40, 50, 60, 70]; 
+            div.innerHTML = '<p><b>Households making </br> less than $50,000</b></p>';
+            for (let i = 0; i < grades.length; i++) {
+                div.innerHTML += '<i style="background:' + ref.getColor(grades, grades[i] + 1) + '"></i> '
+                    + grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '%<br>' : '%+');
+            }
+            return div;
+          } else if (overlayType === 'pollutant') {
+            const grades = [0, 5, 10, 15, 20, 25, 30, 35]; 
+            div.innerHTML = '<p><b>PM2.5 Levels</b></p>';
+            for (let i = 0; i < grades.length; i++) {
+                div.innerHTML += '<i style="background:' + ref.getColor(grades, grades[i] + 1) + '"></i> '
+                    + grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+            }
+            return div;
           }
-          return div;
       };
-
-      this.map.on('overlayadd', (e) => {
-        if (e.name === 'Economic Data by Region') {
-          legend.addTo(ref.map);
-          info.addTo(ref.map);
-        }
-      });
-      this.map.on('overlayremove', (e) => {
-        if (e.name === 'Economic Data by Region') {
-          legend.remove();
-          info.remove();
-        }
-      });
-
-      return overlayGeojson;
+      return legend;
     },
     updateBusPositions() {
       this.busMarkers.eachLayer((layer) => {
