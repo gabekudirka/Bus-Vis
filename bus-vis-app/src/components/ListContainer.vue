@@ -68,7 +68,7 @@ export default {
 
 <style>
 .helpBtn{
-    font-size: larger;
+    font-size: x-large;
     color: #94cecb;
     position:fixed;
     top: 5px;

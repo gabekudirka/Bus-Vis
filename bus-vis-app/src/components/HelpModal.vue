@@ -19,8 +19,11 @@
                     Left Sidebar
                 </h3>
                 <div v-show="showLeftSide">
-                    <p> Use Stations/Busses toggle to view and select Charging Stations vs Busses.</p>
-                    <p>Buses can be sorted by clicking the "busNo", "route", etc. headers above the list </p>
+                    <li>Use Stations/Busses toggle to view and select Charging Stations vs Busses.</li>
+                    <li>Buses can be sorted by feature by clicking any of the header features (e.g. busNo, line, etc) above the list </li>
+                    <li>Buses can be shown/hidden from map using the checkboxes to the left of the list item</li>
+                    <li>The checkbox at the top will toggle the visibiltiy of all buses</li>
+                    <li>The "Show Only Converted Buses" hides non-converted buses from the buslist and map</li>
                 </div>
             </div>
 
@@ -34,9 +37,9 @@
                     <p><i class="fas fa-bus" style="color:#2a901a"></i> Converted electric buses</p>
                     <p><i class="fas fa-bus" ></i> Non-converted buses</p>
                     <p><i class="fas fa-charging-station" style="color:#2a901a"></i> Electric bus charging stations</p>
-                    <p>Busses, routes, and charging stations are clickable. When a bus or station is selected, information about the bus/station will show up in the bottom panel. A selected route will turn red and the map will show only the buses currently on that route.</p>
-                    <p>The layers icon on the right of the map allows users to change the map style and toggle different map features on and off.</p>
-                    <p>The time slider beneath the map allows users to move throughout the day to see bus locations change. </p>
+                    <li>Busses, routes, and charging stations are clickable. When a bus or station is selected, information about the bus/station will show up in the bottom panel. A selected route will turn red and the map will show only the buses currently on that route.</li>
+                    <li>The layers icon on the right of the map allows users to change the map style and toggle different map features (such as air pollutant and household demographic overlays) on and off.</li>
+                    <li>The time slider beneath the map allows users to move throughout the day to see bus locations change. </li>
                 </div>
             </div>
 
@@ -47,9 +50,9 @@
                     Bottom Panel- Bus
                 </h3>
                 <div v-show="showBus">
-                    <p>When a bus is selected, the bottom panel will show information relevant to that bus</p>
-                    <p>If it is a converted electric bus, this panel will show two chargs: one representing the amount of miles the bus has driven over the course of the day, and one representing the bus's charge status throughought the day</p>
-                    <p>If the bus is not converted in the selected plan, it will show only the miles driven chart </p>
+                    <li>When a bus is selected, the bottom panel will show information relevant to that bus</li>
+                    <li>If it is a converted electric bus, this panel will show two charts: one representing the amount of miles the bus has driven over the course of the day, and one representing the bus's charge status throughought the day</li>
+                    <li>If the bus is not converted in the selected plan, it will show only the miles driven chart </li>
                 </div>
             </div>
 
@@ -60,9 +63,9 @@
                     Bottom Panel- Station
                 </h3>
                 <div v-show="showStation">
-                    <p>When a charging station is selected, the bottom panel will show information relevant to that station</p>
-                    <p>Information includes UTA stop number, the list of buses currently at the station, and the current power output (at this point just the number of buses currently at station)</p>
-                    <p>The chart to the left shows the number of buses at the station throughout the day</p>
+                    <li>When a charging station is selected, the bottom panel will show information relevant to that station</li>
+                    <li>Information includes UTA stop number, the list of buses currently at the station, and the current power output (at this point just the number of buses currently at station)</li>
+                    <li>The chart to the left shows the number of buses at the station throughout the day</li>
                 </div>
             </div>
 
@@ -73,9 +76,9 @@
                     Plan Details Panel
                 </h3>
                 <div v-show="showPlan">
-                    <p>This panel shows all static data pertaining to the implementation plan.</p>
-                    <p>Plan implementations can be switched using the drop down at the top, this will update the whole screen</p>
-                    <p>Comparison features?</p>
+                    <li>This panel shows all static data pertaining to the implementation plan.</li>
+                    <li>Plan implementations can be switched using the drop down at the top, this will update the whole screen</li>
+                    <li>Clicking "+Compare Plan" will allow users to select a second plan to compare. Clicking "-Hide Comparison" will hide the comparison view.</li>
                 </div>
             </div>
 
@@ -122,6 +125,10 @@ h2 {
 }
 h3 {
     font-size:1.15rem !important;
+}
+li {
+  padding:0.2rem;
+  padding-left: 0.4rem;
 }
 .section {
     background-color: #e5efee;
