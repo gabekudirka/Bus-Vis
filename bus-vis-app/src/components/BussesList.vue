@@ -66,6 +66,9 @@ export default {
         },
         routeFocused: function () {
             return this.$store.state.routeFocused;
+        },
+        routeFocusedNum: function () {
+            return this.$store.state.routeFocusedNum;
         }
     },
     watch: {
@@ -76,25 +79,32 @@ export default {
     methods: {
         checkOnlyConv: function () {
             // just change bussesToShow
+            let busList = this.busLocations.features;
             if (this.onlyConv) {
+                if (this.routeFocused) {
+                    busList = this.busLocations.features.filter(bus => this.bussesToShow.includes(bus.properties.id));
+                }
                  // Get non-conv buses
                 const otherBuses = this.busLocations.features.filter(bus => bus.properties.converted === 0);
-                const convertedBuses = this.busLocations.features.filter(bus => bus.properties.converted === 1);
+                const convertedBuses = busList.filter(bus => bus.properties.converted === 1);
                 // hide other buses from map
                 otherBuses.map(bus => {
                     bus.properties.show = false;
                     return bus;
                 });
+
                 this.$store.dispatch('changeBussesToShow', convertedBuses.map(bus => bus.properties.id));
             } else {
+                if (this.routeFocused) {
+                    busList = this.busLocations.features.filter(bus => bus.properties.route === this.routeFocusedNum);
+                }
                 // show all buses
                 const allBuses = [];
-                this.busLocations.features.map(bus => {
+                busList.map(bus => {
                     bus.properties.show = true;
                     allBuses.push(bus.properties.id);
                     return bus;
                 });
-
                 this.$store.dispatch('changeBussesToShow', allBuses);
             }
         },

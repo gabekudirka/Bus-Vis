@@ -9,6 +9,7 @@ export default createStore({
         time: '01:40',
         showBusses: true,
         routeFocused: false,
+        routeFocusedNum: -1,
         bussesToShow: null,
         busLocations: {
             type: 'FeatureCollection',
@@ -56,6 +57,10 @@ export default createStore({
         },
         CHANGE_ROUTE_FOCUSED(state, routeFocused) {
             state.routeFocused = routeFocused;
+        },
+        CHANGE_ROUTE_FOCUSED_NUM(state, routeFocusedNum) {
+            console.log(routeFocusedNum);
+            state.routeFocusedNum = routeFocusedNum;
         }
     },
     actions: {
@@ -85,6 +90,9 @@ export default createStore({
         },
         changeRouteFocused({ commit }, payload) {
             commit('CHANGE_ROUTE_FOCUSED', payload);
+        },
+        changeRouteFocusedNum({ commit }, payload) {
+            commit('CHANGE_ROUTE_FOCUSED_NUM', payload);
         }
     }
   });

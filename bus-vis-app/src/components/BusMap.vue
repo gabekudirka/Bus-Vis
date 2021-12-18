@@ -418,6 +418,7 @@ export default {
         tooltip.show(layer.feature);
         this.hideBusesOffRoute(layer);
         this.$store.dispatch('changeRouteFocused', true);
+        this.$store.dispatch('changeRouteFocusedNum', layer.feature.properties.LineAbbr);
       } else {
         if (this.selectedRoute === layer._leaflet_id) {
           this.selectedRoute = -1;
@@ -425,6 +426,7 @@ export default {
           // if multiple overlapping routes, select and delselct one to push it to the back
           this.showAllBuses(); 
           this.$store.dispatch('changeRouteFocused', false);
+          this.$store.dispatch('changeRouteFocusedNum', -1);
         } else {
           const oldLayer = this.routesOverlay._layers[this.selectedRoute];
           oldLayer.setStyle(this.unclickedRouteStyle);
@@ -434,6 +436,7 @@ export default {
           tooltip.show(layer.feature);
           this.showAllBuses();
           this.hideBusesOffRoute(layer);
+          this.$store.dispatch('changeRouteFocusedNum', layer.feature.properties.LineAbbr);
         }
       }
     },
